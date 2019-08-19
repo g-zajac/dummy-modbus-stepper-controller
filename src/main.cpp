@@ -1,8 +1,6 @@
 #include <Arduino.h>
-
-// #include <UIPEthernet.h> // Used for Ethernet ENC28J60
 #include <Ethernet.h> // Used for Ethernet W51000
-// #include "SocketIOClient.h"
+#include <SocketIoClient.h>
 
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
