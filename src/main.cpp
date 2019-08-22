@@ -7,9 +7,8 @@
 
 const int ledPin = 5;
 //Modbus Registers Offsets (0-9999)
-const int SENSOR_ISTS = 100;
-//Used Pins
-const int sensorPin = A0;
+const int SERVO_HREG = 100;
+
 
 //ModbusIP object
 ModbusIP mb;
@@ -57,12 +56,14 @@ void setup() {
   //   printIPAddress();
 
   mb.config(mac);
-  mb.addHreg(SENSOR_ISTS);
+  mb.addHreg(SERVO_HREG, 0);
 }
 
 void loop() {
     mb.task();
-    mb.Hreg(SENSOR_ISTS, digitalRead(A1));
+    Serial.print("received modbus: ");
+    Serial.println(mb.Hreg(SERVO_HREG));
+    delay(200);
 
     switch (Ethernet.maintain())
      {
