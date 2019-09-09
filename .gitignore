@@ -4,3 +4,6 @@
 /lib
 /build
 /notes
+/doc
+.DS_Store
+src/credentials.h
