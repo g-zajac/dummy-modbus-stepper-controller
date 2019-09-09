@@ -8,28 +8,45 @@
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // For the rest we use DHCP (IP address and such)
 
-void printIPAddress()
-{
-  Serial.println("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-  Serial.print("IP Address        : ");
-  Serial.println(Ethernet.localIP());
-  Serial.print("Subnet Mask       : ");
-  Serial.println(Ethernet.subnetMask());
-  Serial.print("Default Gateway IP: ");
-  Serial.println(Ethernet.gatewayIP());
-  Serial.print("DNS Server IP     : ");
-  Serial.println(Ethernet.dnsServerIP());
-  Serial.println();
-}
+#include <AccelStepper.h>
+// Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
+#define dirPin 17
+#define stepPin 18
+#define motorInterfaceType 1
+#define enable 19
+
+// Create a new instance of the AccelStepper class:
+AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i=0;i<length;i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
+    payload[length] = '\0';
+    String strTopic = String((char*)topic);
+    Serial.print("Received MQTT: "); Serial.print(strTopic);
+
+    if (strTopic == "/servo/1/position_request") {
+      String msg1 = (char*)payload;
+      int position = msg1.toInt();
+      Serial.print(" ");
+      Serial.println(position);
+      int newPosition = map(position,0,100,0,200*16);
+      Serial.print("motor new position: ");
+      Serial.println(newPosition);
+      Serial.print("position received, starting position: ");
+      Serial.println(stepper.currentPosition());
+      stepper.runToNewPosition(newPosition);
+      Serial.print("end of moving, position: ");
+      Serial.println(stepper.currentPosition());
+    }
+    if (strTopic == "node/setup/interval") {
+      String msg2 = (char*)payload;
+      Serial.println(msg2);
+      // interval = msg2.toInt();
+    }
+    if (strTopic == "node/setup/brightness") {
+      String msg3 = (char*)payload;
+      Serial.println(msg3);
+      // pixelBrightness = msg3.toInt();
+    }
 }
 
 EthernetClient ethClient;
@@ -89,8 +106,12 @@ void setup() {
     Serial.print("  DHCP assigned IP ");
     Serial.println(Ethernet.localIP());
   }
-    // print your local IP address:
-    // printIPAddress();
+
+  Serial.println("stepper test");
+  pinMode(enable, OUTPUT);
+  digitalWrite(enable, LOW);
+  stepper.setMaxSpeed(2000.0);
+  stepper.setAcceleration(500.0);
 }
 
 void loop() {
