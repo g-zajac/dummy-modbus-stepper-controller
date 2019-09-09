@@ -1,9 +1,9 @@
 #include <Arduino.h>
-#include <UIPEthernet.h> // Used for Ethernet
+#include <SPI.h>
+#include <Ethernet.h> // Used for Ethernet
 #include "PubSubClient.h"
 #include "credentials.h"
 // **** ETHERNET SETTING ****
-// Arduino Uno pins: 10 = CS, 11 = MOSI, 12 = MISO, 13 = SCK
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // For the rest we use DHCP (IP address and such)
@@ -32,7 +32,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-
 EthernetClient ethClient;
 PubSubClient client(server, 1883, callback, ethClient);
 
@@ -58,19 +57,40 @@ void reconnect() {
 }
 
 void setup() {
+  //teensy WIZ820io initialisation code
+  pinMode(9, OUTPUT);
+  digitalWrite(9, LOW);    // begin reset the WIZ820io
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);  // de-select WIZ820io
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);   // de-select the SD Card
+  digitalWrite(9, HIGH);   // end reset pulse
 
+  delay(1000);            //TODO remove in producition
   Serial.begin(9600);
-
-  // start the Ethernet connection:
+  Serial.println("Serial initiated");
+  // Check for Ethernet hardware present
+  Serial.println("Initialize Ethernet with DHCP:");
   if (Ethernet.begin(mac) == 0) {
-      Serial.println("Failed to configure Ethernet using DHCP");
-      // no point in carrying on, so do nothing forevermore:
-      for (;;);
+    Serial.println("Failed to configure Ethernet using DHCP");
+  // Check for Ethernet hardware present
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    while (true) {
+      delay(1); // do nothing, no point running without Ethernet hardware
     }
-
+  }
+  if (Ethernet.linkStatus() == LinkOFF) {
+    Serial.println("Ethernet cable is not connected.");
+  }
+  // try to congifure using IP address instead of DHCP:
+  Ethernet.begin(mac);
+  } else {
+    Serial.print("  DHCP assigned IP ");
+    Serial.println(Ethernet.localIP());
+  }
     // print your local IP address:
-    printIPAddress();
-
+    // printIPAddress();
 }
 
 void loop() {
