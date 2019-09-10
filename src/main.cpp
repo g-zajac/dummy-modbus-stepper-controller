@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include <SPI.h>
-#include <Ethernet.h> // Used for Ethernet
+#include <SPI.h>  //redundant?
+#include <Ethernet.h>
 #include "PubSubClient.h"
 #include "credentials.h"
 // **** ETHERNET SETTING ****
@@ -10,13 +10,15 @@ byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 
 #include <AccelStepper.h>
 // Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
-#define dirPin 17
-#define stepPin 18
-#define motorInterfaceType 1
-#define enable 19
+#define DIR_PIN 17
+#define STEP_PIN 18
+#define MOTOR_INTERFACE_TYPE 1
+#define ENABLE 19
 
 // Create a new instance of the AccelStepper class:
-AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+AccelStepper stepper = AccelStepper(MOTOR_INTERFACE_TYPE, STEP_PIN, DIR_PIN);
+
+EthernetClient ethClient;
 
 void callback(char* topic, byte* payload, unsigned int length) {
     payload[length] = '\0';
@@ -28,28 +30,29 @@ void callback(char* topic, byte* payload, unsigned int length) {
       int position = msg1.toInt();
       Serial.print(" ");
       Serial.println(position);
-      int newPosition = map(position,0,100,0,200*16);
+      int newPosition = map(position,0,100,0,200*16);   //web slider in  0-100 scale, motor set to 16microsteps
       Serial.print("motor new position: ");
       Serial.println(newPosition);
-      Serial.print("position received, starting position: ");
+      Serial.print("starting position: ");
       Serial.println(stepper.currentPosition());
+      // client.publish("/servo/1/position", stepper.currentPosition());
       stepper.runToNewPosition(newPosition);
-      Serial.print("end of moving, position: ");
+      Serial.print("end of moving, new position: ");
       Serial.println(stepper.currentPosition());
+      // client.publish("/servo/1/position", stepper.currentPosition());
     }
-    if (strTopic == "node/setup/interval") {
+    if (strTopic == "/servo/1/test") {
       String msg2 = (char*)payload;
       Serial.println(msg2);
       // interval = msg2.toInt();
     }
-    if (strTopic == "node/setup/brightness") {
+    if (strTopic == "/servo/1/test2") {
       String msg3 = (char*)payload;
       Serial.println(msg3);
       // pixelBrightness = msg3.toInt();
     }
 }
 
-EthernetClient ethClient;
 PubSubClient client(server, 1883, callback, ethClient);
 
 void reconnect() {
@@ -108,10 +111,10 @@ void setup() {
   }
 
   Serial.println("stepper test");
-  pinMode(enable, OUTPUT);
-  digitalWrite(enable, LOW);
-  stepper.setMaxSpeed(2000.0);
-  stepper.setAcceleration(500.0);
+  pinMode(ENABLE, OUTPUT);
+  digitalWrite(ENABLE, LOW);
+  stepper.setMaxSpeed(4000.0);
+  stepper.setAcceleration(800.0);
 }
 
 void loop() {
@@ -133,7 +136,7 @@ void loop() {
          Serial.println("Renewed success");
 
          //print your local IP address:
-         printIPAddress();
+         Serial.println(Ethernet.localIP());
          break;
 
        case 3:
@@ -146,7 +149,7 @@ void loop() {
          Serial.println("Rebind success");
 
          //print your local IP address:
-         printIPAddress();
+         Serial.println(Ethernet.localIP());
          break;
 
        default:
