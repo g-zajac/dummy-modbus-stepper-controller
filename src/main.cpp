@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>  //redundant?
 #include <Ethernet.h>
-#include "PubSubClient.h"
 #include "credentials.h"
 // **** ETHERNET SETTING ****
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
@@ -19,62 +18,6 @@ byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 AccelStepper stepper = AccelStepper(MOTOR_INTERFACE_TYPE, STEP_PIN, DIR_PIN);
 
 EthernetClient ethClient;
-
-void callback(char* topic, byte* payload, unsigned int length) {
-    payload[length] = '\0';
-    String strTopic = String((char*)topic);
-    Serial.print("Received MQTT: "); Serial.print(strTopic);
-
-    if (strTopic == "/servo/1/position_request") {
-      String msg1 = (char*)payload;
-      int position = msg1.toInt();
-      Serial.print(" ");
-      Serial.println(position);
-      int newPosition = map(position,0,100,0,200*16);   //web slider in  0-100 scale, motor set to 16microsteps
-      Serial.print("motor new position: ");
-      Serial.println(newPosition);
-      Serial.print("starting position: ");
-      Serial.println(stepper.currentPosition());
-      // client.publish("/servo/1/position", stepper.currentPosition());
-      stepper.runToNewPosition(newPosition);
-      Serial.print("end of moving, new position: ");
-      Serial.println(stepper.currentPosition());
-      // client.publish("/servo/1/position", stepper.currentPosition());
-    }
-    if (strTopic == "/servo/1/test") {
-      String msg2 = (char*)payload;
-      Serial.println(msg2);
-      // interval = msg2.toInt();
-    }
-    if (strTopic == "/servo/1/test2") {
-      String msg3 = (char*)payload;
-      Serial.println(msg3);
-      // pixelBrightness = msg3.toInt();
-    }
-}
-
-PubSubClient client(server, 1883, callback, ethClient);
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect(MQTT_CLIENT, MQTT_USER, MQTT_PASS)) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("outTopic","hello world");
-      // ... and resubscribe
-      client.subscribe("/servo/1/position_request");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
 
 void setup() {
   //teensy WIZ820io initialisation code
@@ -118,11 +61,6 @@ void setup() {
 }
 
 void loop() {
-
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
 
     switch (Ethernet.maintain())
      {
