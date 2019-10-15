@@ -1,158 +1,83 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <Ethernet.h> // Used for Ethernet
-#include "PubSubClient.h"
-#include "credentials.h"
-// **** ETHERNET SETTING ****
-// Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
-byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
-// For the rest we use DHCP (IP address and such)
+/*
+    This sketch shows the Ethernet event usage
 
-#include <AccelStepper.h>
-// Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
-#define dirPin 17
-#define stepPin 18
-#define motorInterfaceType 1
-#define enable 19
+*/
+#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
+#define ETH_PHY_POWER 12
 
-// Create a new instance of the AccelStepper class:
-AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+#include <ETH.h>
 
-void callback(char* topic, byte* payload, unsigned int length) {
-    payload[length] = '\0';
-    String strTopic = String((char*)topic);
-    Serial.print("Received MQTT: "); Serial.print(strTopic);
+static bool eth_connected = false;
 
-    if (strTopic == "/servo/1/position_request") {
-      String msg1 = (char*)payload;
-      int position = msg1.toInt();
-      Serial.print(" ");
-      Serial.println(position);
-      int newPosition = map(position,0,100,0,200*16);
-      Serial.print("motor new position: ");
-      Serial.println(newPosition);
-      Serial.print("position received, starting position: ");
-      Serial.println(stepper.currentPosition());
-      stepper.runToNewPosition(newPosition);
-      Serial.print("end of moving, position: ");
-      Serial.println(stepper.currentPosition());
-    }
-    if (strTopic == "node/setup/interval") {
-      String msg2 = (char*)payload;
-      Serial.println(msg2);
-      // interval = msg2.toInt();
-    }
-    if (strTopic == "node/setup/brightness") {
-      String msg3 = (char*)payload;
-      Serial.println(msg3);
-      // pixelBrightness = msg3.toInt();
-    }
-}
-
-EthernetClient ethClient;
-PubSubClient client(server, 1883, callback, ethClient);
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect(MQTT_CLIENT, MQTT_USER, MQTT_PASS)) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("outTopic","hello world");
-      // ... and resubscribe
-      client.subscribe("/servo/1/position_request");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
+void WiFiEvent(WiFiEvent_t event)
+{
+  switch (event) {
+    case SYSTEM_EVENT_ETH_START:
+      Serial.println("ETH Started");
+      //set eth hostname here
+      ETH.setHostname("esp32-ethernet");
+      break;
+    case SYSTEM_EVENT_ETH_CONNECTED:
+      Serial.println("ETH Connected");
+      break;
+    case SYSTEM_EVENT_ETH_GOT_IP:
+      Serial.print("ETH MAC: ");
+      Serial.print(ETH.macAddress());
+      Serial.print(", IPv4: ");
+      Serial.print(ETH.localIP());
+      if (ETH.fullDuplex()) {
+        Serial.print(", FULL_DUPLEX");
+      }
+      Serial.print(", ");
+      Serial.print(ETH.linkSpeed());
+      Serial.println("Mbps");
+      eth_connected = true;
+      break;
+    case SYSTEM_EVENT_ETH_DISCONNECTED:
+      Serial.println("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case SYSTEM_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
   }
 }
 
-void setup() {
-  //teensy WIZ820io initialisation code
-  pinMode(9, OUTPUT);
-  digitalWrite(9, LOW);    // begin reset the WIZ820io
-  pinMode(10, OUTPUT);
-  digitalWrite(10, HIGH);  // de-select WIZ820io
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);   // de-select the SD Card
-  digitalWrite(9, HIGH);   // end reset pulse
+void testClient(const char * host, uint16_t port)
+{
+  Serial.print("\nconnecting to ");
+  Serial.println(host);
 
-  delay(1000);            //TODO remove in producition
-  Serial.begin(9600);
-  Serial.println("Serial initiated");
-  // Check for Ethernet hardware present
-  Serial.println("Initialize Ethernet with DHCP:");
-  if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
-  // Check for Ethernet hardware present
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
-    while (true) {
-      delay(1); // do nothing, no point running without Ethernet hardware
-    }
+  WiFiClient client;
+  if (!client.connect(host, port)) {
+    Serial.println("connection failed");
+    return;
   }
-  if (Ethernet.linkStatus() == LinkOFF) {
-    Serial.println("Ethernet cable is not connected.");
-  }
-  // try to congifure using IP address instead of DHCP:
-  Ethernet.begin(mac);
-  } else {
-    Serial.print("  DHCP assigned IP ");
-    Serial.println(Ethernet.localIP());
+  client.printf("GET / HTTP/1.1\r\nHost: %s\r\n\r\n", host);
+  while (client.connected() && !client.available());
+  while (client.available()) {
+    Serial.write(client.read());
   }
 
-  Serial.println("stepper test");
-  pinMode(enable, OUTPUT);
-  digitalWrite(enable, LOW);
-  stepper.setMaxSpeed(2000.0);
-  stepper.setAcceleration(500.0);
+  Serial.println("closing connection\n");
+  client.stop();
 }
 
-void loop() {
+void setup()
+{
+  Serial.begin(115200);
+  WiFi.onEvent(WiFiEvent);
+  ETH.begin();
+}
 
-  if (!client.connected()) {
-    reconnect();
+
+void loop()
+{
+  if (eth_connected) {
+    testClient("google.com", 80);
   }
-  client.loop();
-
-    switch (Ethernet.maintain())
-     {
-       case 1:
-         //renewed fail
-         Serial.println("Error: renewed fail");
-         break;
-
-       case 2:
-         //renewed success
-         Serial.println("Renewed success");
-
-         //print your local IP address:
-         printIPAddress();
-         break;
-
-       case 3:
-         //rebind fail
-         Serial.println("Error: rebind fail");
-         break;
-
-       case 4:
-         //rebind success
-         Serial.println("Rebind success");
-
-         //print your local IP address:
-         printIPAddress();
-         break;
-
-       default:
-         //nothing happened
-         break;
-
-     }
-
+  delay(10000);
 }
