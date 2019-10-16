@@ -12,7 +12,7 @@ const int TEMP_IREG = 10001;
 //ModbusIP object
 ModbusIP mb;
 long ts;
-int sensorPin = A2;
+int sensorPin = A6; // GPIO4
 int temperature = 0;
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
