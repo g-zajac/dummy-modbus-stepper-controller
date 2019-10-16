@@ -8,8 +8,8 @@
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
-const int ledPin = 2;
-const int buttonPin = 3;
+const int ledPin = 5;
+const int buttonPin = 6;
 bool alarmState = 0;
 
 //Modbus Registers Offsets (0-9999)
