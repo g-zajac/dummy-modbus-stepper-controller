@@ -1,17 +1,19 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
+// https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
 
 const int ledPin = 5;
 //Modbus Registers Offsets (0-9999)
-const int SERVO_HREG = 100;
-
+const int SERVO_HREG = 30001;
+const int TEMP_IREG = 10001;
 //ModbusIP object
 ModbusIP mb;
 long ts;
-
+int sensorPin = A2;
+int temperature = 0;
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
 
@@ -21,20 +23,46 @@ EthernetServer server = EthernetServer(502);
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // The IP address for the shield
 // byte ip[] = { 10, 0, 10, 211 };
+
+unsigned long previousMillis = 0;
+const long interval = 1*1000;
+
+void printIPAddress()
+{
+  Serial.println("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+  Serial.print("IP Address        : ");
+  Serial.println(Ethernet.localIP());
+  Serial.print("Subnet Mask       : ");
+  Serial.println(Ethernet.subnetMask());
+  Serial.print("Default Gateway IP: ");
+  Serial.println(Ethernet.gatewayIP());
+  Serial.print("DNS Server IP     : ");
+  Serial.println(Ethernet.dnsServerIP());
+  Serial.println();
+}
+
 void setup() {
 
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
-
   mb.config(mac);
   mb.addHreg(SERVO_HREG, 0);
+  mb.addIreg(TEMP_IREG);
 }
 
 void loop() {
     mb.task();
-    Serial.print("received modbus: ");
-    Serial.println(mb.Hreg(SERVO_HREG));
-    delay(200);
+
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
+      Serial.print("updated modbus register: ");
+      Serial.println(mb.Hreg(SERVO_HREG));
+      Serial.print("reading analog input: ");
+      temperature = analogRead(sensorPin);
+      Serial.println(temperature);
+      mb.Ireg(TEMP_IREG, temperature);
+    }
 
     switch (Ethernet.maintain())
      {
