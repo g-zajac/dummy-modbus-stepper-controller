@@ -21,21 +21,6 @@ EthernetServer server = EthernetServer(502);
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // The IP address for the shield
 // byte ip[] = { 10, 0, 10, 211 };
-
-void printIPAddress()
-{
-  Serial.println("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-  Serial.print("IP Address        : ");
-  Serial.println(Ethernet.localIP());
-  Serial.print("Subnet Mask       : ");
-  Serial.println(Ethernet.subnetMask());
-  Serial.print("Default Gateway IP: ");
-  Serial.println(Ethernet.gatewayIP());
-  Serial.print("DNS Server IP     : ");
-  Serial.println(Ethernet.dnsServerIP());
-  Serial.println();
-}
-
 void setup() {
 
   Serial.begin(9600);
@@ -83,6 +68,5 @@ void loop() {
          //nothing happened
          break;
 
-     }
-
+       }
 }
