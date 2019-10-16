@@ -14,7 +14,7 @@ bool alarmState = 0;
 
 //Modbus Registers Offsets (0-9999)
 const int HREG_ALARM_CODE = 40001;
-const int SERVO_HREG = 30001;
+const int HREG_P2P_DISTANCE = 40031;  //long
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 
 //ModbusIP object
@@ -59,7 +59,7 @@ void setup() {
 
   mb.config(mac);
   mb.addHreg(HREG_ALARM_CODE);
-  mb.addHreg(SERVO_HREG, 0);
+  mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
 }
 
@@ -79,8 +79,8 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
-      Serial.print("updated modbus register: ");
-      Serial.println(mb.Hreg(SERVO_HREG));
+      Serial.print("updated HREG_P2P_DISTANCE: ");
+      Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
       Serial.print("reading position, analog input: ");
       position = analogRead(sensorPin);
       Serial.println(position);
