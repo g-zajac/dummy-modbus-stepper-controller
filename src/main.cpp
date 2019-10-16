@@ -5,15 +5,24 @@
 #include <Modbus.h>
 #include <ModbusIP.h>
 
-const int ledPin = 5;
+#include <Bounce2.h>
+Bounce debouncer = Bounce(); // Instantiate a Bounce object
+
+const int ledPin = 2;
+const int buttonPin = 3;
+bool alarmState = 0;
+
 //Modbus Registers Offsets (0-9999)
+const int HREG_ALARM_CODE = 40001;
 const int SERVO_HREG = 30001;
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
+
 //ModbusIP object
 ModbusIP mb;
 long ts;
 int sensorPin = A6; // GPIO4
 int position = 0;
+
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
 
@@ -42,16 +51,30 @@ void printIPAddress()
 }
 
 void setup() {
-
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+  // pinMode(buttonPin, INPUT_PULLUP);
+
+  debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
+  debouncer.interval(100); // Use a debounce interval of 25 milliseconds
+
   mb.config(mac);
+  mb.addHreg(HREG_ALARM_CODE);
   mb.addHreg(SERVO_HREG, 0);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
 }
 
 void loop() {
     mb.task();
+    debouncer.update(); // Update the Bounce instance
+
+    if ( debouncer.fell() ) {  // Call code if button transitions from HIGH to LOW
+     alarmState = !alarmState; // Toggle LED state
+     Serial.print("alarm state: ");
+     Serial.println(alarmState);
+     digitalWrite(ledPin, alarmState);
+     mb.Hreg(HREG_ALARM_CODE, alarmState);
+    }
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
