@@ -53,7 +53,6 @@ void printIPAddress()
 void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
-  // pinMode(buttonPin, INPUT_PULLUP);
 
   debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
@@ -74,6 +73,7 @@ void loop() {
      Serial.println(alarmState);
      digitalWrite(ledPin, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
+     // digitalWrite(LED_PIN,ledState); // Apply new LED state
     }
 
     unsigned long currentMillis = millis();
