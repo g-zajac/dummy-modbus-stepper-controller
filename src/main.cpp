@@ -1,19 +1,36 @@
 #include <Arduino.h>
+
 #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
+
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiAvrI2c.h"
+#define I2C_ADDRESS 0x3C
+
+SSD1306AsciiAvrI2c oled;
+
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
 
+#include <Bounce2.h>
+Bounce debouncer = Bounce(); // Instantiate a Bounce object
+
 const int ledPin = 5;
+const int buttonPin = 6;
+bool alarmState = 0;
+
 //Modbus Registers Offsets (0-9999)
-const int SERVO_HREG = 30001;
-const int TEMP_IREG = 10001;
+const int HREG_ALARM_CODE = 40001;
+const int HREG_P2P_DISTANCE = 40031;  //long
+const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
+
 //ModbusIP object
 ModbusIP mb;
 long ts;
-int sensorPin = A2;
-int temperature = 0;
+int analogIn = A6; // GPIO4
+int position = 0;
+
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
 
@@ -42,26 +59,50 @@ void printIPAddress()
 }
 
 void setup() {
-
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+
+  oled.begin(&Adafruit128x64, I2C_ADDRESS);
+  // oled.setFont(System5x7);
+  oled.setFont(Arial14);
+  oled.clear();
+  oled.print("modbus v1.1");
+  delay(1000);
+
+  debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
+  debouncer.interval(100); // Use a debounce interval of 25 milliseconds
+
   mb.config(mac);
-  mb.addHreg(SERVO_HREG, 0);
-  mb.addIreg(TEMP_IREG);
+  mb.addHreg(HREG_ALARM_CODE);
+  mb.addHreg(HREG_P2P_DISTANCE);
+  mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
 }
 
 void loop() {
     mb.task();
+    debouncer.update(); // Update the Bounce instance
+
+    if ( debouncer.fell() ) {  // Call code if button transitions from HIGH to LOW
+     alarmState = !alarmState; // Toggle alarm state
+     Serial.print("alarm state: ");
+     Serial.println(alarmState);
+     digitalWrite(ledPin, alarmState);
+     mb.Hreg(HREG_ALARM_CODE, alarmState);
+    }
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
-      Serial.print("updated modbus register: ");
-      Serial.println(mb.Hreg(SERVO_HREG));
-      Serial.print("reading analog input: ");
-      temperature = analogRead(sensorPin);
-      Serial.println(temperature);
-      mb.Ireg(TEMP_IREG, temperature);
+      Serial.print("updated HREG_P2P_DISTANCE: ");
+      Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
+      oled.clear();
+      oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
+      Serial.print("analog input: ");
+      position = analogRead(analogIn);
+      Serial.println(position);
+      oled.println("");
+      oled.print("pos: "); oled.println(position);
+      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
     switch (Ethernet.maintain())
