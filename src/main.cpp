@@ -1,6 +1,14 @@
 #include <Arduino.h>
+
 #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
+
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiAvrI2c.h"
+#define I2C_ADDRESS 0x3C
+
+SSD1306AsciiAvrI2c oled;
+
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
@@ -8,8 +16,8 @@
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
-const int ledPin = 2;
-const int buttonPin = 3;
+const int ledPin = 5;
+const int buttonPin = 6;
 bool alarmState = 0;
 
 //Modbus Registers Offsets (0-9999)
@@ -20,7 +28,7 @@ const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 //ModbusIP object
 ModbusIP mb;
 long ts;
-int sensorPin = A6; // GPIO4
+int analogIn = A6; // GPIO4
 int position = 0;
 
 // Set Port to 502
@@ -54,6 +62,13 @@ void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
 
+  oled.begin(&Adafruit128x64, I2C_ADDRESS);
+  // oled.setFont(System5x7);
+  oled.setFont(Arial14);
+  oled.clear();
+  oled.print("modbus v1.1");
+  delay(1000);
+
   debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
 
@@ -68,12 +83,11 @@ void loop() {
     debouncer.update(); // Update the Bounce instance
 
     if ( debouncer.fell() ) {  // Call code if button transitions from HIGH to LOW
-     alarmState = !alarmState; // Toggle LED state
+     alarmState = !alarmState; // Toggle alarm state
      Serial.print("alarm state: ");
      Serial.println(alarmState);
      digitalWrite(ledPin, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
-     // digitalWrite(LED_PIN,ledState); // Apply new LED state
     }
 
     unsigned long currentMillis = millis();
@@ -81,9 +95,13 @@ void loop() {
       previousMillis = currentMillis;
       Serial.print("updated HREG_P2P_DISTANCE: ");
       Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
-      Serial.print("reading position, analog input: ");
-      position = analogRead(sensorPin);
+      oled.clear();
+      oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
+      Serial.print("analog input: ");
+      position = analogRead(analogIn);
       Serial.println(position);
+      oled.println("");
+      oled.print("pos: "); oled.println(position);
       mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
