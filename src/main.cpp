@@ -1,83 +1,71 @@
-/*
-    This sketch shows the Ethernet event usage
+#include <Arduino.h>
+#include <SPI.h>
+#include <Ethernet.h> // Used for Ethernet
+#include <Modbus.h>
+#include <ModbusIP.h>
 
-*/
-#define ETH_CLK_MODE ETH_CLOCK_GPIO17_OUT
-#define ETH_PHY_POWER 12
+const int ledPin = 5;
+//Modbus Registers Offsets (0-9999)
+const int SERVO_HREG = 100;
 
-#include <ETH.h>
+//ModbusIP object
+ModbusIP mb;
+long ts;
 
-static bool eth_connected = false;
+// Set Port to 502
+EthernetServer server = EthernetServer(502);
 
-void WiFiEvent(WiFiEvent_t event)
-{
-  switch (event) {
-    case SYSTEM_EVENT_ETH_START:
-      Serial.println("ETH Started");
-      //set eth hostname here
-      ETH.setHostname("esp32-ethernet");
-      break;
-    case SYSTEM_EVENT_ETH_CONNECTED:
-      Serial.println("ETH Connected");
-      break;
-    case SYSTEM_EVENT_ETH_GOT_IP:
-      Serial.print("ETH MAC: ");
-      Serial.print(ETH.macAddress());
-      Serial.print(", IPv4: ");
-      Serial.print(ETH.localIP());
-      if (ETH.fullDuplex()) {
-        Serial.print(", FULL_DUPLEX");
-      }
-      Serial.print(", ");
-      Serial.print(ETH.linkSpeed());
-      Serial.println("Mbps");
-      eth_connected = true;
-      break;
-    case SYSTEM_EVENT_ETH_DISCONNECTED:
-      Serial.println("ETH Disconnected");
-      eth_connected = false;
-      break;
-    case SYSTEM_EVENT_ETH_STOP:
-      Serial.println("ETH Stopped");
-      eth_connected = false;
-      break;
-    default:
-      break;
-  }
+// **** ETHERNET SETTING ****
+// Arduino Uno pins: 10 = CS, 11 = MOSI, 12 = MISO, 13 = SCK
+// Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
+byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
+// The IP address for the shield
+// byte ip[] = { 10, 0, 10, 211 };
+void setup() {
+
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);
+
+  mb.config(mac);
+  mb.addHreg(SERVO_HREG, 0);
 }
 
-void testClient(const char * host, uint16_t port)
-{
-  Serial.print("\nconnecting to ");
-  Serial.println(host);
+void loop() {
+    mb.task();
+    Serial.print("received modbus: ");
+    Serial.println(mb.Hreg(SERVO_HREG));
+    delay(200);
 
-  WiFiClient client;
-  if (!client.connect(host, port)) {
-    Serial.println("connection failed");
-    return;
-  }
-  client.printf("GET / HTTP/1.1\r\nHost: %s\r\n\r\n", host);
-  while (client.connected() && !client.available());
-  while (client.available()) {
-    Serial.write(client.read());
-  }
+    switch (Ethernet.maintain())
+     {
+       case 1:
+         //renewed fail
+         Serial.println("Error: renewed fail");
+         break;
 
-  Serial.println("closing connection\n");
-  client.stop();
-}
+       case 2:
+         //renewed success
+         Serial.println("Renewed success");
 
-void setup()
-{
-  Serial.begin(115200);
-  WiFi.onEvent(WiFiEvent);
-  ETH.begin();
-}
+         //print your local IP address:
+         printIPAddress();
+         break;
 
+       case 3:
+         //rebind fail
+         Serial.println("Error: rebind fail");
+         break;
 
-void loop()
-{
-  if (eth_connected) {
-    testClient("google.com", 80);
-  }
-  delay(10000);
+       case 4:
+         //rebind success
+         Serial.println("Rebind success");
+
+         //print your local IP address:
+         printIPAddress();
+         break;
+
+       default:
+         //nothing happened
+         break;
+
 }
