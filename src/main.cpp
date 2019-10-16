@@ -8,12 +8,12 @@
 const int ledPin = 5;
 //Modbus Registers Offsets (0-9999)
 const int SERVO_HREG = 30001;
-const int TEMP_IREG = 10001;
+const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 //ModbusIP object
 ModbusIP mb;
 long ts;
 int sensorPin = A6; // GPIO4
-int temperature = 0;
+int position = 0;
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
 
@@ -47,7 +47,7 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   mb.config(mac);
   mb.addHreg(SERVO_HREG, 0);
-  mb.addIreg(TEMP_IREG);
+  mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
 }
 
 void loop() {
@@ -58,10 +58,10 @@ void loop() {
       previousMillis = currentMillis;
       Serial.print("updated modbus register: ");
       Serial.println(mb.Hreg(SERVO_HREG));
-      Serial.print("reading analog input: ");
-      temperature = analogRead(sensorPin);
-      Serial.println(temperature);
-      mb.Ireg(TEMP_IREG, temperature);
+      Serial.print("reading position, analog input: ");
+      position = analogRead(sensorPin);
+      Serial.println(position);
+      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
     switch (Ethernet.maintain())
