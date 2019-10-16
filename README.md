@@ -1,4 +1,3 @@
-# stepper-bridge-ethernet
-Bridge for controling a stepper motor over ethernet
-
-Controlling stepper motor with pul/dir interface over ethernet by MQTT.
+# dummy-modbus-stepper-controller
+32u4 with ethernet for testing modbus protocole communitaction with node.js server.
+The controller pretends to be Moon stepper motor controller.
