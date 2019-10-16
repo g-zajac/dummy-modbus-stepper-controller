@@ -1,17 +1,19 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
+// https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
 
 const int ledPin = 5;
 //Modbus Registers Offsets (0-9999)
-const int SERVO_HREG = 100;
-
+const int SERVO_HREG = 30001;
+const int TEMP_IREG = 10001;
 //ModbusIP object
 ModbusIP mb;
 long ts;
-
+int sensorPin = A2;
+int temperature = 0;
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
 
@@ -40,15 +42,21 @@ void setup() {
 
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
-
   mb.config(mac);
   mb.addHreg(SERVO_HREG, 0);
+  mb.addIreg(TEMP_IREG);
 }
 
 void loop() {
     mb.task();
+
+    
     Serial.print("received modbus: ");
     Serial.println(mb.Hreg(SERVO_HREG));
+    Serial.print("reading analog input: ");
+    temperature = analogRead(sensorPin);
+    Serial.println(temperature);
+    mb.Ireg(TEMP_IREG, temperature);
     delay(200);
 
     switch (Ethernet.maintain())
