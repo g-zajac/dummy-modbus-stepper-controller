@@ -3,15 +3,19 @@
 // #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
 
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiAvrI2c.h"
-#define I2C_ADDRESS 0x3C
-
-SSD1306AsciiAvrI2c oled;
-
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
+
+// #include <i2c_t3.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
@@ -61,13 +65,36 @@ void printIPAddress()
 void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+  delay(5000);
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
 
-  oled.begin(&Adafruit128x64, I2C_ADDRESS);
-  // oled.setFont(System5x7);
-  oled.setFont(Arial14);
-  oled.clear();
-  oled.print("modbus v1.1");
-  delay(1000);
+
+  // write a line, size=2
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0,8*5);
+  display.print("Size 2 txt");
+  display.display();
+
+  //free up pin 13 for LED
+  SPI.setSCK(14);
+  // CORE_PIN13_CONFIG = PORT_PCR_MUX(1);
+  // CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+
+  Serial.println("restarting ethernet module...");
+  //teensy WIZ820io initialisation code
+  pinMode(9, OUTPUT);
+  digitalWrite(9, LOW);    // begin reset the WIZ820io
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);  // de-select WIZ820io
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);   // de-select the SD Card
+  digitalWrite(9, HIGH);   // end reset pulse
 
   debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
@@ -95,13 +122,13 @@ void loop() {
       previousMillis = currentMillis;
       Serial.print("updated HREG_P2P_DISTANCE: ");
       Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
-      oled.clear();
-      oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
+      // oled.clear();
+      // oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
       Serial.print("analog input: ");
       position = analogRead(analogIn);
       Serial.println(position);
-      oled.println("");
-      oled.print("pos: "); oled.println(position);
+      // oled.println("");
+      // oled.print("pos: "); oled.println(position);
       mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
