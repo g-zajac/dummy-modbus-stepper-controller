@@ -7,7 +7,8 @@
 #include <Modbus.h>
 #include <ModbusIP.h>
 
-// #include <i2c_t3.h>
+// adafruit OLED pinmap: data - sda (pin18), clk - scl (pin19), reset pin 20
+// TODO test if reset is needed for oled?
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -20,8 +21,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
-const int ledPin = 5;
-const int buttonPin = 6;
+const int ledPin = 13;
+const int buttonPin = 15;
 bool alarmState = 0;
 
 //Modbus Registers Offsets (0-9999)
@@ -40,6 +41,7 @@ EthernetServer server = EthernetServer(502);
 
 // **** ETHERNET SETTING ****
 // Arduino Uno pins: 10 = CS, 11 = MOSI, 12 = MISO, 13 = SCK
+// Teens 10 = CS(SS), 11 = MOSI, 12 = MISO, 14 (changed from 13 in code) = SCK
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // The IP address for the shield
@@ -72,21 +74,16 @@ void setup() {
     for(;;); // Don't proceed, loop forever
   }
 
-
-  // write a line, size=2
   display.clearDisplay();
   display.setTextColor(WHITE);
   display.setTextSize(1);
   display.setCursor(0,8*5);
-  display.print("Size 2 txt");
+  display.print("test");
   display.display();
 
+  Serial.println("restarting ethernet module...");
   //free up pin 13 for LED
   SPI.setSCK(14);
-  // CORE_PIN13_CONFIG = PORT_PCR_MUX(1);
-  // CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
-
-  Serial.println("restarting ethernet module...");
   //teensy WIZ820io initialisation code
   pinMode(9, OUTPUT);
   digitalWrite(9, LOW);    // begin reset the WIZ820io
