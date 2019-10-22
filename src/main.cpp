@@ -1,6 +1,6 @@
 #include <Arduino.h>
 
-#include <SPI.h>
+// #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
 
 #include "SSD1306Ascii.h"
