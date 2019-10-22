@@ -73,14 +73,13 @@ void setup() {
   }
 
 
+  // write a line, size=2
   display.clearDisplay();
-
-  for(int16_t i=0; i<display.height()/2; i+=2) {
-    display.drawRect(i, i, display.width()-2*i, display.height()-2*i, WHITE);
-    display.display(); // Update screen with each newly-drawn rectangle
-    delay(1);
-  }
-
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0,8*5);
+  display.print("Size 2 txt");
+  display.display();
 
   //free up pin 13 for LED
   SPI.setSCK(14);
