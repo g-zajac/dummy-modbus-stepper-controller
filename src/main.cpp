@@ -14,6 +14,8 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
+#include <TimeLib.h>
+
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -64,8 +66,32 @@ void printIPAddress()
   Serial.println();
 }
 
+void printDigits(byte digits){
+ // utility function for digital clock display: prints colon and leading 0
+ Serial.print(":");
+ if(digits < 10)
+   Serial.print('0');
+ Serial.print(digits,DEC);
+}
+
+void time(long val){
+int days = elapsedDays(val);
+int hours = numberOfHours(val);
+int minutes = numberOfMinutes(val);
+int seconds = numberOfSeconds(val);
+
+ // digital clock display of current time
+ Serial.print(days,DEC);
+ printDigits(hours);
+ printDigits(minutes);
+ printDigits(seconds);
+ Serial.println();
+
+}
+
 void setup() {
   Serial.begin(9600);
+  setTime(0); // start the clock
   pinMode(ledPin, OUTPUT);
   delay(5000);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -75,7 +101,7 @@ void setup() {
   }
 
   display.clearDisplay();
-  display.setTextColor(WHITE);
+  display.setTextColor(WHITE,BLACK);
   display.setTextSize(1);
   display.setCursor(0,8*5);
   display.print("test");
@@ -117,6 +143,24 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
+
+      char buf[21];
+      sprintf(buf, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
+      Serial.println(buf);
+
+      // update uptime
+      display.setCursor(0,8*1);
+      display.print("                ");
+      display.setCursor(0,8*1);
+      display.print(buf);
+      display.display();
+
+      // update IP Address
+      display.setCursor(0,8*2);
+      display.print("IP: ");
+      display.print(Ethernet.localIP());
+      display.display();
+
       Serial.print("updated HREG_P2P_DISTANCE: ");
       Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
       // oled.clear();
