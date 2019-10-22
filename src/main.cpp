@@ -3,9 +3,6 @@
 // #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
 
-
-
-
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
@@ -59,6 +56,11 @@ void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
 
+  //free up pin 13 for LED
+  SPI.setSCK(14);
+  // CORE_PIN13_CONFIG = PORT_PCR_MUX(1);
+  // CORE_PIN14_CONFIG = PORT_PCR_DSE | PORT_PCR_MUX(2);
+
   Serial.println("restarting ethernet module...");
   //teensy WIZ820io initialisation code
   pinMode(9, OUTPUT);
@@ -93,7 +95,6 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
-      printIPAddress();
       Serial.print("updated HREG_P2P_DISTANCE: ");
       Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
       // oled.clear();
