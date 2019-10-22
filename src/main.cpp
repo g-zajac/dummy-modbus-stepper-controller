@@ -3,11 +3,8 @@
 // #include <SPI.h>
 #include <Ethernet.h> // Used for Ethernet
 
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiAvrI2c.h"
-#define I2C_ADDRESS 0x3C
 
-SSD1306AsciiAvrI2c oled;
+
 
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
@@ -62,12 +59,15 @@ void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
 
-  oled.begin(&Adafruit128x64, I2C_ADDRESS);
-  // oled.setFont(System5x7);
-  oled.setFont(Arial14);
-  oled.clear();
-  oled.print("modbus v1.1");
-  delay(1000);
+  Serial.println("restarting ethernet module...");
+  //teensy WIZ820io initialisation code
+  pinMode(9, OUTPUT);
+  digitalWrite(9, LOW);    // begin reset the WIZ820io
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);  // de-select WIZ820io
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);   // de-select the SD Card
+  digitalWrite(9, HIGH);   // end reset pulse
 
   debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
@@ -93,15 +93,16 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
+      printIPAddress();
       Serial.print("updated HREG_P2P_DISTANCE: ");
       Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
-      oled.clear();
-      oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
+      // oled.clear();
+      // oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
       Serial.print("analog input: ");
       position = analogRead(analogIn);
       Serial.println(position);
-      oled.println("");
-      oled.print("pos: "); oled.println(position);
+      // oled.println("");
+      // oled.print("pos: "); oled.println(position);
       mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
