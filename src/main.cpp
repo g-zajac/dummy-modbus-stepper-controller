@@ -15,11 +15,14 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-#include <TimeLib.h>
-
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+#include <TimeLib.h>
+#include <Encoder.h>
+Encoder knob(5, 6);
+long knob_position  = -999;
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
@@ -174,6 +177,14 @@ void loop() {
       displayOnOled(buf_reg2, 4);
 
       // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
+    }
+
+    long knob_new_position;
+    knob_new_position = knob.read();
+    if (knob_new_position != knob_position){
+      Serial.print("knob pos: ");
+      Serial.println(knob_new_position);
+      knob_position = knob_new_position;
     }
 
     switch (Ethernet.maintain())
