@@ -14,7 +14,7 @@
 #include <Adafruit_SSD1306.h>
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
+int progres_counter = 0;
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -28,7 +28,7 @@ long knob_position  = -999;
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
 const int ledPin = 13;
-const int buttonPin = 15;
+const int knobButtonPin = 15;
 bool alarmState = 0;
 
 //Modbus Registers Offsets (0-9999)
@@ -55,7 +55,7 @@ byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // byte ip[] = { 10, 0, 10, 211 };
 
 unsigned long previousMillis = 0;
-const long interval = 1*1000;
+const long interval = 250;
 
 void printIPAddress()
 {
@@ -133,7 +133,7 @@ void setup() {
   digitalWrite(4, HIGH);   // de-select the SD Card
   digitalWrite(9, HIGH);   // end reset pulse
 
-  debouncer.attach(buttonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
+  debouncer.attach(knobButtonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
 
   mb.config(mac);
@@ -177,7 +177,29 @@ void loop() {
       displayOnOled(buf_reg2, 4);
 
       // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
-    }
+
+
+      // draw cicrcle at initialisatio
+      // - \ | /
+      if (progres_counter <5) {
+        display.setCursor(12,0);
+        display.print(" ");
+        display.setCursor(12,0);
+        switch(progres_counter){
+          case 0:
+          display.print("|"); break;
+          case 1:
+          display.print("/"); break;
+          case 2:
+          display.print("-"); break;
+          case 3:
+          display.print('\\'); break;
+        }
+        display.display();
+        progres_counter++;
+      } else progres_counter = 0;
+
+    } // end of interval
 
     long knob_new_position;
     knob_new_position = knob.read();
@@ -185,6 +207,7 @@ void loop() {
       Serial.print("knob pos: ");
       Serial.println(knob_new_position);
       knob_position = knob_new_position;
+      //TODO if knob_new_position <0 then knob_position = 0
     }
 
     switch (Ethernet.maintain())
