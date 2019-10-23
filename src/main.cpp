@@ -1,3 +1,4 @@
+#define FIRMWARE_VERSION 1.12
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -14,6 +15,8 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
+#include <TimeLib.h>
+
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -29,6 +32,7 @@ bool alarmState = 0;
 const int HREG_ALARM_CODE = 40001;
 const int HREG_P2P_DISTANCE = 40031;  //long
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
+const int HREG_COMMAND_OPCODE = 40125;
 
 //ModbusIP object
 ModbusIP mb;
@@ -64,8 +68,40 @@ void printIPAddress()
   Serial.println();
 }
 
+void printDigits(byte digits){
+ // utility function for digital clock display: prints colon and leading 0
+ Serial.print(":");
+ if(digits < 10)
+   Serial.print('0');
+ Serial.print(digits,DEC);
+}
+
+void time(long val){
+int days = elapsedDays(val);
+int hours = numberOfHours(val);
+int minutes = numberOfMinutes(val);
+int seconds = numberOfSeconds(val);
+
+ // digital clock display of current time
+ Serial.print(days,DEC);
+ printDigits(hours);
+ printDigits(minutes);
+ printDigits(seconds);
+ Serial.println();
+
+}
+
+void displayOnOled(String text, int row){
+  display.setCursor(0,8*row);
+  display.print("                ");
+  display.setCursor(0,8*row);
+  display.print(text);
+  display.display();
+}
+
 void setup() {
   Serial.begin(9600);
+  setTime(0); // start the clock
   pinMode(ledPin, OUTPUT);
   delay(5000);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -75,11 +111,12 @@ void setup() {
   }
 
   display.clearDisplay();
-  display.setTextColor(WHITE);
+  display.setTextColor(WHITE,BLACK);
   display.setTextSize(1);
-  display.setCursor(0,8*5);
-  display.print("test");
-  display.display();
+
+  char buf_ver[12];
+  sprintf(buf_ver, "fw ver: %04f", FIRMWARE_VERSION);
+  displayOnOled(buf_ver, 0);
 
   Serial.println("restarting ethernet module...");
   //free up pin 13 for LED
@@ -100,6 +137,7 @@ void setup() {
   mb.addHreg(HREG_ALARM_CODE);
   mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
+  mb.addHreg(HREG_COMMAND_OPCODE, 0);
 }
 
 void loop() {
@@ -117,16 +155,25 @@ void loop() {
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
-      Serial.print("updated HREG_P2P_DISTANCE: ");
-      Serial.println(mb.Hreg(HREG_P2P_DISTANCE));
-      // oled.clear();
-      // oled.print("dist: "); oled.println(mb.Hreg(HREG_P2P_DISTANCE));
-      Serial.print("analog input: ");
-      position = analogRead(analogIn);
-      Serial.println(position);
-      // oled.println("");
-      // oled.print("pos: "); oled.println(position);
-      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
+
+      char buf_up[16];
+      sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
+      displayOnOled(buf_up,1);
+
+      // update IP Address
+      char buf_ip[16];
+      sprintf(buf_ip, "ip: %d.%d.%d.%d", Ethernet.localIP()[0], Ethernet.localIP()[1], Ethernet.localIP()[2], Ethernet.localIP()[3]);
+      displayOnOled(buf_ip,2);
+
+      char buf_reg1[18];
+      sprintf(buf_reg1, "scl: %d", mb.Hreg(HREG_COMMAND_OPCODE));
+      displayOnOled(buf_reg1, 3);
+
+      char buf_reg2[18];
+      sprintf(buf_reg2, "pos: %d", mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION));
+      displayOnOled(buf_reg2, 4);
+
+      // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
     }
 
     switch (Ethernet.maintain())
