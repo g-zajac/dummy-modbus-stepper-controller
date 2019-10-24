@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.12
+#define FIRMWARE_VERSION 1.13
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -229,19 +229,21 @@ void loop() {
       Serial.print("modbus connected: ");
       Serial.println(modbusConnected);
 
-      if (progres_counter <5) {
-        display.setCursor(12,0);
+      Serial.print("progres counter: ");
+      Serial.println(progres_counter);
+      if (progres_counter < 4) {
+        display.setCursor(6*20,0);  //max 20 characters in line
         display.print(" ");
-        display.setCursor(12,0);
+        display.setCursor(6*20,0);
         switch(progres_counter){
           case 0:
-          display.print("◴"); break;
+          display.print("-"); break;
           case 1:
-          display.print("◷"); break;
+          display.print("\\"); break;
           case 2:
-          display.print("◶"); break;
+          display.print("|"); break;
           case 3:
-          display.print("◵"); break;
+          display.print("/"); break;
         }
         display.display();
         progres_counter++;
