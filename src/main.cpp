@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.13
+#define FIRMWARE_VERSION 1.14
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -26,13 +26,25 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #include <TimeLib.h>
 #include <Encoder.h>
+/*
+Rotary encoder wireing
+(numbers of PCB connector pins, starting from teensy side top)
+[connected to teensy pin]
+[5](1)  grey  A  1         4 - Red - brown (4)[16]
+[G](2)  white C- 2         5 - Green -
+[6](3)  black B  3    X    6 - Switch - red (5)[15]
+                          7 - Blue
+                          8 - Common GND - orange (6)[GND]
+*/
 Encoder knob(5, 6);
 long knob_position  = -999;
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
-const int ledPin = 13;
+// TODO add build in led on GPIO13
+const int buildInLed = 13;
+const int alarmLedPin = 16;
 const int knobButtonPin = 15;
 bool alarmState = 0;
 
@@ -122,7 +134,8 @@ void displayOnOled(String text, int row){
 void setup() {
   Serial.begin(9600);
   setTime(0); // start the clock
-  pinMode(ledPin, OUTPUT);
+  pinMode(alarmLedPin, OUTPUT);
+  pinMode(buildInLed, OUTPUT);
   delay(5000);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
@@ -168,7 +181,8 @@ void loop() {
      alarmState = !alarmState; // Toggle alarm state
      Serial.print("alarm state: ");
      Serial.println(alarmState);
-     digitalWrite(ledPin, alarmState);
+     digitalWrite(alarmLedPin, alarmState);
+     digitalWrite(buildInLed, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
     }
 
@@ -180,18 +194,18 @@ void loop() {
     //   modbusConnected = false;
     // };
 
-    Serial.println(server.available());
-    Serial.println(Ethernet.hardwareStatus());
+    // Serial.println(server.available());
+    // Serial.println(Ethernet.hardwareStatus());
 
-    if (Ethernet.linkStatus() == Unknown) {
-      Serial.println("Link status unknown. Link status detection is only available with W5200 and W5500.");
-      }
-      else if (Ethernet.linkStatus() == LinkON) {
-        Serial.println("Link status: On");
-      }
-      else if (Ethernet.linkStatus() == LinkOFF) {
-        Serial.println("Link status: Off");
-    }
+    // if (Ethernet.linkStatus() == Unknown) {
+    //   Serial.println("Link status unknown. Link status detection is only available with W5200 and W5500.");
+    //   }
+    //   else if (Ethernet.linkStatus() == LinkON) {
+    //     Serial.println("Link status: On");
+    //   }
+    //   else if (Ethernet.linkStatus() == LinkOFF) {
+    //     Serial.println("Link status: Off");
+    // }
 
 
     unsigned long currentMillis = millis();
@@ -226,11 +240,12 @@ void loop() {
 
       // if modbus connected
       // if (mb.connected())
-      Serial.print("modbus connected: ");
-      Serial.println(modbusConnected);
+      // Serial.print("modbus connected: ");
+      // Serial.println(modbusConnected);
 
       Serial.print("progres counter: ");
       Serial.println(progres_counter);
+
       if (progres_counter < 4) {
         display.setCursor(6*20,0);  //max 20 characters in line
         display.print(" ");
