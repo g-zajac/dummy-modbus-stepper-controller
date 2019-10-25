@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.12
+#define FIRMWARE_VERSION 1.14
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -7,27 +7,44 @@
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
-
+bool modbusConnected = false;
 // adafruit OLED pinmap: data - sda (pin18), clk - scl (pin19), reset pin 20
+// DATA - white (no1 from Teensy side) - pin 18
+// CLK - yellow 2 -pin 19
+// GND - black
+// 5V - red
 // TODO test if reset is needed for oled?
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 int progres_counter = 0;
+
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     20 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #include <TimeLib.h>
 #include <Encoder.h>
+/*
+Rotary encoder wireing
+(numbers of PCB connector pins, starting from teensy side top)
+[connected to teensy pin]
+[5](1)  grey  A  1         4 - Red - brown (4)[16]
+[G](2)  white C- 2         5 - Green -
+[6](3)  black B  3    X    6 - Switch - red (5)[15]
+                          7 - Blue
+                          8 - Common GND - orange (6)[GND]
+*/
 Encoder knob(5, 6);
 long knob_position  = -999;
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
 
-const int ledPin = 13;
+// TODO add build in led on GPIO13
+const int buildInLed = 13;
+const int alarmLedPin = 16;
 const int knobButtonPin = 15;
 bool alarmState = 0;
 
@@ -47,6 +64,18 @@ int position = 0;
 EthernetServer server = EthernetServer(502);
 
 // **** ETHERNET SETTING ****
+/*
+RED (1) - PoE-
+(2) - PoE +
+(3) - GND
+(4) - MI - MISO - pin 12
+(5) - MO - MOSI - pin 11
+(6) - SCK - pin 14
+(7) - NSS - CS pin 10
+(8) - RST
+(9) - 5V+
+(10) - GND
+*/
 // Arduino Uno pins: 10 = CS, 11 = MOSI, 12 = MISO, 13 = SCK
 // Teens 10 = CS(SS), 11 = MOSI, 12 = MISO, 14 (changed from 13 in code) = SCK
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
@@ -105,7 +134,8 @@ void displayOnOled(String text, int row){
 void setup() {
   Serial.begin(9600);
   setTime(0); // start the clock
-  pinMode(ledPin, OUTPUT);
+  pinMode(alarmLedPin, OUTPUT);
+  pinMode(buildInLed, OUTPUT);
   delay(5000);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
@@ -151,9 +181,32 @@ void loop() {
      alarmState = !alarmState; // Toggle alarm state
      Serial.print("alarm state: ");
      Serial.println(alarmState);
-     digitalWrite(ledPin, alarmState);
+     digitalWrite(alarmLedPin, alarmState);
+     digitalWrite(buildInLed, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
     }
+
+    // check if modbus client is connected:
+    // if (EthernetServer.connected()){
+    //   modbusConnected = true;
+    // }
+    // else {
+    //   modbusConnected = false;
+    // };
+
+    // Serial.println(server.available());
+    // Serial.println(Ethernet.hardwareStatus());
+
+    // if (Ethernet.linkStatus() == Unknown) {
+    //   Serial.println("Link status unknown. Link status detection is only available with W5200 and W5500.");
+    //   }
+    //   else if (Ethernet.linkStatus() == LinkON) {
+    //     Serial.println("Link status: On");
+    //   }
+    //   else if (Ethernet.linkStatus() == LinkOFF) {
+    //     Serial.println("Link status: Off");
+    // }
+
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
@@ -180,20 +233,32 @@ void loop() {
 
 
       // draw cicrcle at initialisatio
-      // - \ | /
-      if (progres_counter <5) {
-        display.setCursor(12,0);
+      // - "\\" \ | /
+      // TO DO TEST fonts: ◴ ◷ ◶ ◵
+      // https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
+      // more frames ? al'a js?
+
+      // if modbus connected
+      // if (mb.connected())
+      // Serial.print("modbus connected: ");
+      // Serial.println(modbusConnected);
+
+      Serial.print("progres counter: ");
+      Serial.println(progres_counter);
+
+      if (progres_counter < 4) {
+        display.setCursor(6*20,0);  //max 20 characters in line
         display.print(" ");
-        display.setCursor(12,0);
+        display.setCursor(6*20,0);
         switch(progres_counter){
           case 0:
-          display.print("|"); break;
-          case 1:
-          display.print("/"); break;
-          case 2:
           display.print("-"); break;
+          case 1:
+          display.print("\\"); break;
+          case 2:
+          display.print("|"); break;
           case 3:
-          display.print('\\'); break;
+          display.print("/"); break;
         }
         display.display();
         progres_counter++;
