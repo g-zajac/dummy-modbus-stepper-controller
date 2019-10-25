@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.14
+#define FIRMWARE_VERSION 1.16
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -36,7 +36,7 @@ Rotary encoder wireing
                           7 - Blue
                           8 - Common GND - orange (6)[GND]
 */
-Encoder knob(5, 6);
+Encoder knob(6, 5);
 long knob_position  = -999;
 
 #include <Bounce2.h>
@@ -77,8 +77,9 @@ RED (1) - PoE-
 (10) - GND
 */
 // Arduino Uno pins: 10 = CS, 11 = MOSI, 12 = MISO, 13 = SCK
-// Teens 10 = CS(SS), 11 = MOSI, 12 = MISO, 14 (changed from 13 in code) = SCK
+// Teensy 10 = CS(SS), 11 = MOSI, 12 = MISO, 14 (changed from 13 in code) = SCK
 // Ethernet MAC address - must be unique on your network - MAC Reads T4A001 in hex (unique in your network)
+//TODO change for MOONS mac address
 byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // The IP address for the shield
 // byte ip[] = { 10, 0, 10, 211 };
@@ -152,9 +153,10 @@ void setup() {
   sprintf(buf_ver, "fw ver: %04f", FIRMWARE_VERSION);
   displayOnOled(buf_ver, 0);
 
-  Serial.println("restarting ethernet module...");
-  //free up pin 13 for LED
+  //free up pin 13 for builin LED
   SPI.setSCK(14);
+
+  Serial.println("restarting ethernet module...");
   //teensy WIZ820io initialisation code
   pinMode(9, OUTPUT);
   digitalWrite(9, LOW);    // begin reset the WIZ820io
@@ -164,8 +166,8 @@ void setup() {
   digitalWrite(4, HIGH);   // de-select the SD Card
   digitalWrite(9, HIGH);   // end reset pulse
 
-  debouncer.attach(knobButtonPin,INPUT_PULLDOWN); // Attach the debouncer to a pin with, pull down, switch connected to
-  debouncer.interval(100); // Use a debounce interval of 25 milliseconds
+  debouncer.attach(knobButtonPin,INPUT_PULLDOWN); // Attach the debouncer to a pin with pull down, switch connected to +3V3
+  debouncer.interval(25); // Use a debounce interval of 25 milliseconds
 
   mb.config(mac);
   mb.addHreg(HREG_ALARM_CODE);
@@ -186,28 +188,6 @@ void loop() {
      digitalWrite(buildInLed, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
     }
-
-    // check if modbus client is connected:
-    // if (EthernetServer.connected()){
-    //   modbusConnected = true;
-    // }
-    // else {
-    //   modbusConnected = false;
-    // };
-
-    // Serial.println(server.available());
-    // Serial.println(Ethernet.hardwareStatus());
-
-    // if (Ethernet.linkStatus() == Unknown) {
-    //   Serial.println("Link status unknown. Link status detection is only available with W5200 and W5500.");
-    //   }
-    //   else if (Ethernet.linkStatus() == LinkON) {
-    //     Serial.println("Link status: On");
-    //   }
-    //   else if (Ethernet.linkStatus() == LinkOFF) {
-    //     Serial.println("Link status: Off");
-    // }
-
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
@@ -232,20 +212,8 @@ void loop() {
 
       // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
 
-
-      // draw cicrcle at initialisatio
-      // - "\\" \ | /
-      // TO DO TEST fonts: ◴ ◷ ◶ ◵
-      // https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json
-      // more frames ? al'a js?
-
-      // if modbus connected
-      // if (mb.connected())
-      // Serial.print("modbus connected: ");
-      // Serial.println(modbusConnected);
-
-      Serial.print("progres counter: ");
-      Serial.println(progres_counter);
+      // Serial.print("progres counter: ");
+      // Serial.println(progres_counter);
 
       if (progres_counter < 4) {
         display.setCursor(6*20,0);  //max 20 characters in line
@@ -264,6 +232,25 @@ void loop() {
         display.display();
         progres_counter++;
       } else progres_counter = 0;
+
+      // TESTS
+
+      // if modbus connected
+      // if (mb.connected())
+      // Serial.print("modbus connected: ");
+      // Serial.println(modbusConnected);
+
+      // check if modbus client is connected:
+      // if (Ethernet.connected()){
+      //   modbusConnected = true;
+      // }
+      // else {
+      //   modbusConnected = false;
+      // };
+      //
+      // Serial.print("ethernet connected "); Serial.println(modbusConnected);
+      // Serial.print("server avaliable "); Serial.println(server.available());
+      // Serial.print("hardware status"); Serial.println(Ethernet.hardwareStatus());
 
     } // end of interval
 
