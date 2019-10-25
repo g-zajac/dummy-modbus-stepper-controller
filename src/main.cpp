@@ -135,6 +135,7 @@ void setup() {
   Serial.begin(9600);
   setTime(0); // start the clock
   pinMode(alarmLedPin, OUTPUT);
+  digitalWrite(alarmLedPin, HIGH); // low = ON
   pinMode(buildInLed, OUTPUT);
   delay(5000);
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -163,7 +164,7 @@ void setup() {
   digitalWrite(4, HIGH);   // de-select the SD Card
   digitalWrite(9, HIGH);   // end reset pulse
 
-  debouncer.attach(knobButtonPin,INPUT_PULLUP); // Attach the debouncer to a pin with INPUT_PULLUP mode
+  debouncer.attach(knobButtonPin,INPUT_PULLDOWN); // Attach the debouncer to a pin with, pull down, switch connected to
   debouncer.interval(100); // Use a debounce interval of 25 milliseconds
 
   mb.config(mac);
@@ -181,7 +182,7 @@ void loop() {
      alarmState = !alarmState; // Toggle alarm state
      Serial.print("alarm state: ");
      Serial.println(alarmState);
-     digitalWrite(alarmLedPin, alarmState);
+     digitalWrite(alarmLedPin, !alarmState);
      digitalWrite(buildInLed, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
     }
