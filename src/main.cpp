@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.17
+#define FIRMWARE_VERSION 1.19
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -208,18 +208,22 @@ void loop() {
       sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
       displayOnOled(buf_up,1);
 
+      char buf_mac[18];
+      sprintf(buf_mac, "mac:%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      displayOnOled(buf_mac, 2);
+
       // update IP Address
       char buf_ip[16];
       sprintf(buf_ip, "ip: %d.%d.%d.%d", Ethernet.localIP()[0], Ethernet.localIP()[1], Ethernet.localIP()[2], Ethernet.localIP()[3]);
-      displayOnOled(buf_ip,2);
+      displayOnOled(buf_ip,3);
 
       char buf_reg1[18];
       sprintf(buf_reg1, "scl: %d", mb.Hreg(HREG_COMMAND_OPCODE));
-      displayOnOled(buf_reg1, 3);
+      displayOnOled(buf_reg1, 4);
 
       char buf_reg2[18];
       sprintf(buf_reg2, "pos: %d", mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION));
-      displayOnOled(buf_reg2, 4);
+      displayOnOled(buf_reg2, 5);
 
       // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
 
