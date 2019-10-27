@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.19
+#define FIRMWARE_VERSION 1.20
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -7,7 +7,7 @@
 // https://github.com/andresarmento/modbus-arduino
 #include <Modbus.h>
 #include <ModbusIP.h>
-bool modbusConnected = false;
+
 // adafruit OLED pinmap: data - sda (pin18), clk - scl (pin19), reset pin 20
 // DATA - white (no1 from Teensy side) - pin 18
 // CLK - yellow 2 -pin 19
@@ -60,7 +60,6 @@ const int HREG_COMMAND_OPCODE = 40125;
 ModbusIP mb;
 long ts;
 int analogIn = A6; // GPIO4
-int position = 0;
 
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
@@ -87,7 +86,7 @@ byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // byte ip[] = { 10, 0, 10, 211 };
 
 unsigned long previousMillis = 0;
-const long interval = 250;
+const long interval = 200;
 
 void printIPAddress()
 {
@@ -196,13 +195,24 @@ void loop() {
      Serial.print("alarm state: ");
      Serial.println(alarmState);
      digitalWrite(alarmLedPin, !alarmState);
-     digitalWrite(buildInLed, alarmState);
+     // digitalWrite(buildInLed, alarmState);
      mb.Hreg(HREG_ALARM_CODE, alarmState);
     }
+
+    //TODO fix reading position x4
+    long knob_new_position;
+    knob_new_position = knob.read();
+    if (knob_new_position != knob_position){
+      knob_position = knob_new_position;
+      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, knob_position);
+    };
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
+
+      Serial.print("knob pos: ");
+      Serial.println(knob_position);
 
       char buf_up[16];
       sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
@@ -225,11 +235,6 @@ void loop() {
       sprintf(buf_reg2, "pos: %d", mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION));
       displayOnOled(buf_reg2, 5);
 
-      // mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, position);
-
-      // Serial.print("progres counter: ");
-      // Serial.println(progres_counter);
-
       if (progres_counter < 4) {
         display.setCursor(6*20,0);  //max 20 characters in line
         display.print(" ");
@@ -248,35 +253,7 @@ void loop() {
         progres_counter++;
       } else progres_counter = 0;
 
-      // TESTS
-
-      // if modbus connected
-      // if (mb.connected())
-      // Serial.print("modbus connected: ");
-      // Serial.println(modbusConnected);
-
-      // check if modbus client is connected:
-      // if (Ethernet.connected()){
-      //   modbusConnected = true;
-      // }
-      // else {
-      //   modbusConnected = false;
-      // };
-      //
-      // Serial.print("ethernet connected "); Serial.println(modbusConnected);
-      // Serial.print("server avaliable "); Serial.println(server.available());
-      // Serial.print("hardware status"); Serial.println(Ethernet.hardwareStatus());
-
     } // end of interval
-
-    long knob_new_position;
-    knob_new_position = knob.read();
-    if (knob_new_position != knob_position){
-      Serial.print("knob pos: ");
-      Serial.println(knob_new_position);
-      knob_position = knob_new_position;
-      //TODO if knob_new_position <0 then knob_position = 0
-    }
 
     switch (Ethernet.maintain())
      {
