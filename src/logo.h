@@ -1,10 +1,4 @@
-
-// Filename: logo bw inverted 64x64.jpg
-// Filesize: 6955 Bytes
-
-// http://www.majer.ch/lcd/adf_bitmap.php
-
-// Size bitmap: 512 bytes
+// https://javl.github.io/image2cpp/
 
 #define LOGO_WIDTH 64
 #define LOGO_HEIGHT 64
