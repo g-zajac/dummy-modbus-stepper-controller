@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.20
+#define FIRMWARE_VERSION 1.22
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -49,6 +49,19 @@ const int buildInLed = 13;
 const int alarmLedPin = 16;
 const int knobButtonPin = 15;
 bool alarmState = 0;
+
+const int currentAD = A9; //gpio 23
+
+#include <AccelStepper.h>
+
+// Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
+#define dirPin 4
+#define stepPin 3
+#define motorInterfaceType 1
+#define enable 2
+
+// Create a new instance of the AccelStepper class:
+AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 
 //Modbus Registers Offsets (0-9999)
 const int HREG_ALARM_CODE = 40001;
@@ -184,6 +197,17 @@ void setup() {
   mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
+
+  // set stepper motor
+  pinMode(enable, OUTPUT);
+  digitalWrite(enable, LOW);
+  stepper.setMaxSpeed(1000.0);
+  stepper.setAcceleration(400.0);
+  Serial.print("Starting position: ");
+  Serial.println(stepper.currentPosition());
+  stepper.runToNewPosition(200*1.8*16);
+  Serial.print("End position: ");
+  Serial.println(stepper.currentPosition());
 }
 
 void loop() {
