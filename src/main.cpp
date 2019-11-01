@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 12
+#define FIRMWARE_VERSION 13
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -39,7 +39,7 @@ Rotary encoder wireing
                           8 - Common GND - orange (6)[GND]
 */
 Encoder knob(6, 5);
-long knob_position  = -999;
+int knob_position  = 0;
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
@@ -202,7 +202,7 @@ void setup() {
 
   mb.config(mac);
   mb.addHreg(HREG_FIRMWARE_VERSION, FIRMWARE_VERSION);
-  mb.addHreg(HREG_ALARM_CODE);
+  mb.addHreg(HREG_ALARM_CODE, 0);
   mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
@@ -231,25 +231,24 @@ void loop() {
      Serial.println(alarmState);
      digitalWrite(alarmLedPin, !alarmState);
      // digitalWrite(buildInLed, alarmState);
-     mb.Hreg(HREG_ALARM_CODE, alarmState);
+
+    if (alarmState){
+      mb.Hreg(HREG_ALARM_CODE, knob_position);
+    } else {
+      mb.Hreg(HREG_ALARM_CODE, 0);
     }
+   }
 
-    //TODO fix reading position x4
-    long knob_new_position;
-    knob_new_position = knob.read();
-    if (knob_new_position != knob_position){
-      knob_position = knob_new_position;
-      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, knob_position);
-    };
-
-
+   //TODO fix reading position x4?
+   long knob_new_position;
+   knob_new_position = knob.read();
+   if (knob_new_position != knob_position){
+     knob_position = knob_new_position;
+   };
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
-
-      Serial.print("knob pos: ");
-      Serial.println(knob_position);
 
       char buf_up[16];
       sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
@@ -269,7 +268,7 @@ void loop() {
       displayOnOled(buf_reg1, 4);
 
       char buf_reg2[18];
-      sprintf(buf_reg2, "pos: %d", mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION));
+      sprintf(buf_reg2, "alarm: %d", knob_position);
       displayOnOled(buf_reg2, 5);
 
       // Measuring Current Using ACS712
