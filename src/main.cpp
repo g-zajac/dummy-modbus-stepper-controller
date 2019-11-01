@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 18
+#define FIRMWARE_VERSION 19
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -249,6 +249,7 @@ void loop() {
 
       // test
       motor_position = stepper.currentPosition() / 3200;  //  in revs
+      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, motor_position);
       motor_position_new = mb.Hreg(HREG_COMMAND_OPCODE); // in revs
       if ( motor_position != motor_position_new){
         stepper.runToNewPosition(motor_position_new * 3200); // 200 steps/rev , 16mikrostpes [200*1.8*16 ?]
