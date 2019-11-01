@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 19
+#define FIRMWARE_VERSION 191
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -54,7 +54,7 @@ bool alarmState = 0;
 const int analogINpin = A9;
 const float offset = 2.4;
 float calibration = -0.100;
-int noSamples = 100; //numbers of AD samples taken to count average
+int noSamples = 25; //numbers of AD samples taken to count average
 float voltage = 0;
 float current = 0;
 
@@ -109,7 +109,7 @@ byte mac[] = { 0x54, 0x34, 0x41, 0x30, 0x30, 0x31 };
 // byte ip[] = { 10, 0, 10, 211 };
 
 unsigned long previousMillis = 0;
-const long interval = 200;
+const long interval = 50;
 
 void printIPAddress()
 {
@@ -269,12 +269,12 @@ void loop() {
       displayOnOled(buf_ip,3);
 
       char buf_reg1[18];
-      sprintf(buf_reg1, "scl: %d", mb.Hreg(HREG_COMMAND_OPCODE));
+      sprintf(buf_reg1, "scl: %d | pos:  %d", mb.Hreg(HREG_COMMAND_OPCODE), motor_position);
       displayOnOled(buf_reg1, 4);
 
-      char buf_reg2[18];
-      sprintf(buf_reg2, "pos: %d", motor_position);
-      displayOnOled(buf_reg2, 5);
+      // char buf_reg2[18];
+      // sprintf(buf_reg2, "pos: %d", motor_position);
+      // displayOnOled(buf_reg2, 5);
 
       char buf_reg3[18];
       sprintf(buf_reg3, "alarm: %d", knob_position);
