@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.20
+#define FIRMWARE_VERSION 19
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -39,7 +39,7 @@ Rotary encoder wireing
                           8 - Common GND - orange (6)[GND]
 */
 Encoder knob(6, 5);
-long knob_position  = -999;
+int knob_position  = 0;
 
 #include <Bounce2.h>
 Bounce debouncer = Bounce(); // Instantiate a Bounce object
@@ -50,16 +50,39 @@ const int alarmLedPin = 16;
 const int knobButtonPin = 15;
 bool alarmState = 0;
 
+// Measuring Current Using ACS712
+const int analogINpin = A9;
+const float offset = 2.4;
+float calibration = -0.100;
+int noSamples = 100; //numbers of AD samples taken to count average
+float voltage = 0;
+float current = 0;
+
+#include <AccelStepper.h>
+
+// Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
+#define dirPin 4
+#define stepPin 3
+#define motorInterfaceType 1
+#define enable 2
+int motor_position = 0;
+int motor_position_new = 0;
+
+// Create a new instance of the AccelStepper class:
+AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+
 //Modbus Registers Offsets (0-9999)
+const int HREG_FIRMWARE_VERSION = 40109;
 const int HREG_ALARM_CODE = 40001;
-const int HREG_P2P_DISTANCE = 40031;  //long
+// const int HREG_P2P_DISTANCE = 40031;  //long
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 const int HREG_COMMAND_OPCODE = 40125;
+const int HREG_RUNNING_CURRENT_H = 40051;
+const int HREG_RUNNING_CURRENT_L = 40052;
 
 //ModbusIP object
 ModbusIP mb;
 long ts;
-int analogIn = A6; // GPIO4
 
 // Set Port to 502
 EthernetServer server = EthernetServer(502);
@@ -160,7 +183,7 @@ void setup() {
   display.setTextSize(1);
 
   char buf_ver[12];
-  sprintf(buf_ver, "fw ver: %04f", FIRMWARE_VERSION);
+  sprintf(buf_ver, "fw ver: %d", FIRMWARE_VERSION);
   displayOnOled(buf_ver, 0);
 
   //free up pin 13 for builin LED
@@ -180,10 +203,19 @@ void setup() {
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
 
   mb.config(mac);
-  mb.addHreg(HREG_ALARM_CODE);
-  mb.addHreg(HREG_P2P_DISTANCE);
+  mb.addHreg(HREG_FIRMWARE_VERSION, FIRMWARE_VERSION);
+  mb.addHreg(HREG_ALARM_CODE, 0);
+  // mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
+  mb.addHreg(HREG_RUNNING_CURRENT_H,0);
+  mb.addHreg(HREG_RUNNING_CURRENT_L,0);
+
+  // set stepper motor
+  pinMode(enable, OUTPUT);
+  digitalWrite(enable, LOW);
+  stepper.setMaxSpeed(6400.0);  // 1.0 steps per second
+  stepper.setAcceleration(3200.0);
 }
 
 void loop() {
@@ -196,23 +228,32 @@ void loop() {
      Serial.println(alarmState);
      digitalWrite(alarmLedPin, !alarmState);
      // digitalWrite(buildInLed, alarmState);
-     mb.Hreg(HREG_ALARM_CODE, alarmState);
-    }
 
-    //TODO fix reading position x4
-    long knob_new_position;
-    knob_new_position = knob.read();
-    if (knob_new_position != knob_position){
-      knob_position = knob_new_position;
-      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, knob_position);
-    };
+    if (alarmState){
+      mb.Hreg(HREG_ALARM_CODE, knob_position);
+    } else {
+      mb.Hreg(HREG_ALARM_CODE, 0);
+    }
+   }
+
+   //TODO fix reading position x4?
+   long knob_new_position;
+   knob_new_position = knob.read();
+   if (knob_new_position != knob_position){
+     knob_position = knob_new_position;
+   };
 
     unsigned long currentMillis = millis();
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-      Serial.print("knob pos: ");
-      Serial.println(knob_position);
+      // test
+      motor_position = stepper.currentPosition() / 3200;  //  in revs
+      mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, motor_position);
+      motor_position_new = mb.Hreg(HREG_COMMAND_OPCODE); // in revs
+      if ( motor_position != motor_position_new){
+        stepper.runToNewPosition(motor_position_new * 3200); // 200 steps/rev , 16mikrostpes [200*1.8*16 ?]
+      }
 
       char buf_up[16];
       sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
@@ -232,8 +273,34 @@ void loop() {
       displayOnOled(buf_reg1, 4);
 
       char buf_reg2[18];
-      sprintf(buf_reg2, "pos: %d", mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION));
+      sprintf(buf_reg2, "pos: %d", motor_position);
       displayOnOled(buf_reg2, 5);
+
+      char buf_reg3[18];
+      sprintf(buf_reg3, "alarm: %d", knob_position);
+      displayOnOled(buf_reg3, 6);
+
+      // Measuring Current Using ACS712
+      // average AD reading
+      float samplesVal = 0;
+      float ascValue = 0;
+      for (int i =0; i < noSamples; i++){
+        ascValue = analogRead(analogINpin);
+        samplesVal = samplesVal + ascValue;
+        delay(3);
+      }
+      float voltage_avg = samplesVal / noSamples;
+      voltage = ((3.3 / 1023.0) * voltage_avg) - 2.4 + calibration; // (max AD voltage / resolution) - offset
+      current = voltage / 0.185;  // sesnsitivity 185mV
+      int whole_cur = current; // casting
+      int reminder_cur = (current - whole_cur) * 1000;
+      // Serial.print("whole: "); Serial.println(whole);
+      // Serial.print("reminder: "); Serial.println(reminder);
+      mb.Hreg(HREG_RUNNING_CURRENT_H, whole_cur);
+      mb.Hreg(HREG_RUNNING_CURRENT_L, reminder_cur);
+      char buf_I[18];
+      sprintf(buf_I, "I = %.3f", current);
+      displayOnOled(buf_I, 7);
 
       if (progres_counter < 4) {
         display.setCursor(6*20,0);  //max 20 characters in line
@@ -247,12 +314,11 @@ void loop() {
           case 2:
           display.print("|"); break;
           case 3:
-          display.print("/"); break;
+          display.print("/");break;
         }
         display.display();
         progres_counter++;
       } else progres_counter = 0;
-
     } // end of interval
 
     switch (Ethernet.maintain())
