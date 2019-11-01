@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 1.25
+#define FIRMWARE_VERSION 12
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -70,10 +70,13 @@ float current = 0;
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 
 //Modbus Registers Offsets (0-9999)
+const int HREG_FIRMWARE_VERSION = 40109;
 const int HREG_ALARM_CODE = 40001;
 const int HREG_P2P_DISTANCE = 40031;  //long
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 const int HREG_COMMAND_OPCODE = 40125;
+const int HREG_RUNNING_CURRENT_H = 40051;
+const int HREG_RUNNING_CURRENT_L = 40052;
 
 //ModbusIP object
 ModbusIP mb;
@@ -178,7 +181,7 @@ void setup() {
   display.setTextSize(1);
 
   char buf_ver[12];
-  sprintf(buf_ver, "fw ver: %04f", FIRMWARE_VERSION);
+  sprintf(buf_ver, "fw ver: %d", FIRMWARE_VERSION);
   displayOnOled(buf_ver, 0);
 
   //free up pin 13 for builin LED
@@ -198,15 +201,15 @@ void setup() {
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
 
   mb.config(mac);
+  mb.addHreg(HREG_FIRMWARE_VERSION, FIRMWARE_VERSION);
   mb.addHreg(HREG_ALARM_CODE);
   mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
+  mb.addHreg(HREG_RUNNING_CURRENT_H,0);
+  mb.addHreg(HREG_RUNNING_CURRENT_L,0);
 
   // set stepper motor
-
-  //disable motor temporary
-
   pinMode(enable, OUTPUT);
   digitalWrite(enable, LOW);
   stepper.setMaxSpeed(1000.0);
@@ -281,6 +284,12 @@ void loop() {
       float voltage_avg = samplesVal / noSamples;
       voltage = ((3.3 / 1023.0) * voltage_avg) - 2.4 + calibration; // (max AD voltage / resolution) - offset
       current = voltage / 0.185;  // sesnsitivity 185mV
+      int whole_cur = current; // casting
+      int reminder_cur = (current - whole_cur) * 1000;
+      // Serial.print("whole: "); Serial.println(whole);
+      // Serial.print("reminder: "); Serial.println(reminder);
+      mb.Hreg(HREG_RUNNING_CURRENT_H, whole_cur);
+      mb.Hreg(HREG_RUNNING_CURRENT_L, reminder_cur);
       char buf_I[18];
       sprintf(buf_I, "stepI: %.3f", current);
       displayOnOled(buf_I, 6);
