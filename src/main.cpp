@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 191
+#define FIRMWARE_VERSION 193
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -57,6 +57,7 @@ float calibration = -0.100;
 int noSamples = 25; //numbers of AD samples taken to count average
 float voltage = 0;
 float current = 0;
+// TODO fix reading, switch to 3.3V? test raw readings?
 
 #include <AccelStepper.h>
 
@@ -79,6 +80,8 @@ const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 const int HREG_COMMAND_OPCODE = 40125;
 const int HREG_RUNNING_CURRENT_H = 40051;
 const int HREG_RUNNING_CURRENT_L = 40052;
+const int HREG_P2P_ACCELERATION = 40028;
+const int HREG_VELOCITY = 40030;
 
 //ModbusIP object
 ModbusIP mb;
@@ -188,17 +191,7 @@ void setup() {
 
   //free up pin 13 for builin LED
   SPI.setSCK(14);
-
-  Serial.println("restarting ethernet module...");
-  //teensy WIZ820io initialisation code
-  pinMode(9, OUTPUT);
-  digitalWrite(9, LOW);    // begin reset the WIZ820io
-  pinMode(10, OUTPUT);
-  digitalWrite(10, HIGH);  // de-select WIZ820io
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);   // de-select the SD Card
-  digitalWrite(9, HIGH);   // end reset pulse
-
+  
   debouncer.attach(knobButtonPin,INPUT_PULLDOWN); // Attach the debouncer to a pin with pull down, switch connected to +3V3
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
 
@@ -210,12 +203,14 @@ void setup() {
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
   mb.addHreg(HREG_RUNNING_CURRENT_H,0);
   mb.addHreg(HREG_RUNNING_CURRENT_L,0);
+  mb.addHreg(HREG_P2P_ACCELERATION, 3200);
+  mb.addHreg(HREG_VELOCITY, 6400);
 
   // set stepper motor
   pinMode(enable, OUTPUT);
   digitalWrite(enable, LOW);
-  stepper.setMaxSpeed(6400.0);  // 1.0 steps per second
-  stepper.setAcceleration(3200.0);
+  stepper.setMaxSpeed(mb.Hreg(HREG_VELOCITY));  // 1.0 steps per second
+  stepper.setAcceleration(mb.Hreg(HREG_P2P_ACCELERATION));
 }
 
 void loop() {
@@ -247,7 +242,10 @@ void loop() {
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
-      // test
+      // stepper motor
+      stepper.setMaxSpeed(mb.Hreg(HREG_VELOCITY));  // 1.0 steps per second
+      stepper.setAcceleration(mb.Hreg(HREG_P2P_ACCELERATION));
+
       motor_position = stepper.currentPosition() / 3200;  //  in revs
       mb.Hreg(HREG_IMEDIATE_ABSOLUTE_POSITION, motor_position);
       motor_position_new = mb.Hreg(HREG_COMMAND_OPCODE); // in revs
@@ -272,9 +270,9 @@ void loop() {
       sprintf(buf_reg1, "scl: %d | pos:  %d", mb.Hreg(HREG_COMMAND_OPCODE), motor_position);
       displayOnOled(buf_reg1, 4);
 
-      // char buf_reg2[18];
-      // sprintf(buf_reg2, "pos: %d", motor_position);
-      // displayOnOled(buf_reg2, 5);
+      char buf_reg2[18];
+      sprintf(buf_reg2, "v: %d | a: %d", mb.Hreg(HREG_VELOCITY), mb.Hreg(HREG_P2P_ACCELERATION));
+      displayOnOled(buf_reg2, 5);
 
       char buf_reg3[18];
       sprintf(buf_reg3, "alarm: %d", knob_position);
