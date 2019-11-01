@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 13
+#define FIRMWARE_VERSION 18
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -65,6 +65,8 @@ float current = 0;
 #define stepPin 3
 #define motorInterfaceType 1
 #define enable 2
+int motor_position = 0;
+int motor_position_new = 0;
 
 // Create a new instance of the AccelStepper class:
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
@@ -72,7 +74,7 @@ AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 //Modbus Registers Offsets (0-9999)
 const int HREG_FIRMWARE_VERSION = 40109;
 const int HREG_ALARM_CODE = 40001;
-const int HREG_P2P_DISTANCE = 40031;  //long
+// const int HREG_P2P_DISTANCE = 40031;  //long
 const int HREG_IMEDIATE_ABSOLUTE_POSITION  = 40007; //long
 const int HREG_COMMAND_OPCODE = 40125;
 const int HREG_RUNNING_CURRENT_H = 40051;
@@ -203,7 +205,7 @@ void setup() {
   mb.config(mac);
   mb.addHreg(HREG_FIRMWARE_VERSION, FIRMWARE_VERSION);
   mb.addHreg(HREG_ALARM_CODE, 0);
-  mb.addHreg(HREG_P2P_DISTANCE);
+  // mb.addHreg(HREG_P2P_DISTANCE);
   mb.addHreg(HREG_IMEDIATE_ABSOLUTE_POSITION);
   mb.addHreg(HREG_COMMAND_OPCODE, 0);
   mb.addHreg(HREG_RUNNING_CURRENT_H,0);
@@ -212,13 +214,8 @@ void setup() {
   // set stepper motor
   pinMode(enable, OUTPUT);
   digitalWrite(enable, LOW);
-  stepper.setMaxSpeed(1000.0);
-  stepper.setAcceleration(400.0);
-  Serial.print("Starting position: ");
-  Serial.println(stepper.currentPosition());
-  stepper.runToNewPosition(200*1.8*16);
-  Serial.print("End position: ");
-  Serial.println(stepper.currentPosition());
+  stepper.setMaxSpeed(6400.0);  // 1.0 steps per second
+  stepper.setAcceleration(3200.0);
 }
 
 void loop() {
@@ -250,6 +247,13 @@ void loop() {
     if (currentMillis - previousMillis >= interval) {
       previousMillis = currentMillis;
 
+      // test
+      motor_position = stepper.currentPosition() / 3200;  //  in revs
+      motor_position_new = mb.Hreg(HREG_COMMAND_OPCODE); // in revs
+      if ( motor_position != motor_position_new){
+        stepper.runToNewPosition(motor_position_new * 3200); // 200 steps/rev , 16mikrostpes [200*1.8*16 ?]
+      }
+
       char buf_up[16];
       sprintf(buf_up, "up: %02dd%02d:%02d:%02d",day()-1, hour(),minute(),second());
       displayOnOled(buf_up,1);
@@ -268,8 +272,12 @@ void loop() {
       displayOnOled(buf_reg1, 4);
 
       char buf_reg2[18];
-      sprintf(buf_reg2, "alarm: %d", knob_position);
+      sprintf(buf_reg2, "pos: %d", motor_position);
       displayOnOled(buf_reg2, 5);
+
+      char buf_reg3[18];
+      sprintf(buf_reg3, "alarm: %d", knob_position);
+      displayOnOled(buf_reg3, 6);
 
       // Measuring Current Using ACS712
       // average AD reading
@@ -290,8 +298,8 @@ void loop() {
       mb.Hreg(HREG_RUNNING_CURRENT_H, whole_cur);
       mb.Hreg(HREG_RUNNING_CURRENT_L, reminder_cur);
       char buf_I[18];
-      sprintf(buf_I, "stepI: %.3f", current);
-      displayOnOled(buf_I, 6);
+      sprintf(buf_I, "I = %.3f", current);
+      displayOnOled(buf_I, 7);
 
       if (progres_counter < 4) {
         display.setCursor(6*20,0);  //max 20 characters in line
