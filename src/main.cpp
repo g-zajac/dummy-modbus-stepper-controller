@@ -1,4 +1,4 @@
-#define FIRMWARE_VERSION 192
+#define FIRMWARE_VERSION 193
 #include <Arduino.h>
 
 // #include <SPI.h>
@@ -191,17 +191,7 @@ void setup() {
 
   //free up pin 13 for builin LED
   SPI.setSCK(14);
-
-  Serial.println("restarting ethernet module...");
-  //teensy WIZ820io initialisation code
-  pinMode(9, OUTPUT);
-  digitalWrite(9, LOW);    // begin reset the WIZ820io
-  pinMode(10, OUTPUT);
-  digitalWrite(10, HIGH);  // de-select WIZ820io
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);   // de-select the SD Card
-  digitalWrite(9, HIGH);   // end reset pulse
-
+  
   debouncer.attach(knobButtonPin,INPUT_PULLDOWN); // Attach the debouncer to a pin with pull down, switch connected to +3V3
   debouncer.interval(25); // Use a debounce interval of 25 milliseconds
 
