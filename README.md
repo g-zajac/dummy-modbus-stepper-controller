@@ -1,8 +1,8 @@
-# Dummy step servo controler with Modbus
+# Dummy step servo controler with modbus
 
 ## About The Project
 
-This project is about mocking up an [Moons' Stepper Servo](https://www.moonsindustries.com/series/ss-series-step-servo-drives-a01030105) for developing a remote control web app with nodejs server.
+This project is about building mock-up of an [Moons' Stepper Servo](https://www.moonsindustries.com/series/ss-series-step-servo-drives-a01030105). The device helps developing a remote control web app with nodejs server without access to the Moons servo.
 Some modbus registers are mapped in teensy 3.2 controler acording to Moons documentation so the server-servo communication could be tested.
 
 ## Hardware
@@ -14,7 +14,7 @@ Some modbus registers are mapped in teensy 3.2 controler acording to Moons docum
 
 ![prototype](doc/dummy-modbus.png)
 
-OLED on the device displays diagnostic informations i.e. IP address, values of some modbus registers - velocity, acceleration etc.
+OLED (monochromatic on the device) displays diagnostic informations like: IP address, values of some modbus registers - velocity, acceleration etc.
 Rotary encoder is used for setting simulated error code.
 
 ## Built With
