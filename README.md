@@ -2,7 +2,7 @@
 
 ## About The Project
 
-This project is about building mock-up of an [Moons' Stepper Servo](https://www.moonsindustries.com/series/ss-series-step-servo-drives-a01030105) - SS-serie. The device helps developing a remote control web app with nodejs server without access to the Moons servo.
+This project is about building mock-up of an [Moons' Stepper Servo SS-serie](https://www.moonsindustries.com/series/ss-series-step-servo-drives-a01030105). The device helps developing a remote control web app with nodejs server without access to the Moons servo.
 Some modbus registers are mapped in teensy 3.2 controler acording to Moons documentation so the server-servo communication could be tested.
 
 ## Hardware
